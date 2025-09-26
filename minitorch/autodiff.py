@@ -22,8 +22,14 @@ def central_difference(f: Any, *vals: Any, arg: int = 0, epsilon: float = 1e-6) 
     Returns:
         An approximation of $f'_i(x_0, \ldots, x_{n-1})$
     """
-    # TODO: Implement for Task 1.1.
-    raise NotImplementedError('Need to implement for Task 1.1')
+    vals = list(vals)
+    vals[arg] += epsilon
+    f_plus = f(*vals)
+
+    vals[arg] -= 2 * epsilon
+    f_minus = f(*vals)
+
+    return (f_plus - f_minus) / (2 * epsilon)
 
 
 variable_count = 1
@@ -50,7 +56,6 @@ class Variable(Protocol):
     def chain_rule(self, d_output: Any) -> Iterable[Tuple["Variable", Any]]:
         pass
 
-
 def topological_sort(variable: Variable) -> Iterable[Variable]:
     """
     Computes the topological order of the computation graph.
@@ -61,8 +66,21 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
     Returns:
         Non-constant Variables in topological order starting from the right.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError('Need to implement for Task 1.4')
+    order: list[Variable] = []
+    visited: set[int] = set()
+
+    def dfs(v: Variable) -> None:
+        if v is None or v.is_constant():
+            return
+        if v.unique_id in visited:
+            return
+        visited.add(v.unique_id)
+        for p in v.parents:
+            dfs(p)
+        order.append(v)
+
+    dfs(variable)
+    return list(reversed(order))
 
 
 def backpropagate(variable: Variable, deriv: Any) -> None:
@@ -76,8 +94,16 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
 
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError('Need to implement for Task 1.4')
+    derivatives: dict[Variable, float] = {variable: float(deriv)}
+    for v in topological_sort(variable):
+        d_out = derivatives.get(v, 0.0)
+        if v.is_leaf():
+            v.accumulate_derivative(d_out)
+        else:
+            for p, d_in in v.chain_rule(d_out):
+                if p.is_constant():
+                    continue
+                derivatives[p] = derivatives.get(p, 0.0) + float(d_in)
 
 
 @dataclass
